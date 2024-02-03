@@ -22,6 +22,17 @@ export class TinyParser extends EventEmitter {
   private timeoutAbortController: AbortController | null = null;
   private httpAbortController = new AbortController();
 
+  get URL() {
+    return this.url;
+  }
+
+  constructor(url: string, timeout: number = 10000) {
+    super();
+    this.timeout = timeout;
+    this.url = url;
+    this._startParsing();
+  }
+
   /**
    * @method setUrl
    * @description Set the URL to parse, will start parsing the URL
@@ -48,17 +59,6 @@ export class TinyParser extends EventEmitter {
       return false;
     }
     return true;
-  }
-
-  get URL() {
-    return this.url;
-  }
-
-  constructor(url: string, timeout: number = 10000) {
-    super();
-    this.timeout = timeout;
-    this.url = url;
-    this._startParsing();
   }
 
   /**
