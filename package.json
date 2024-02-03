@@ -9,7 +9,8 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test": "npm run build && node --test **/*.spec.js",
-    "test:watch": "node --test --watch"
+    "test:watch": "node --test --watch",
+    "test:watch:all": "node --test --watch **/*.spec.js"
   },
   "keywords": [],
   "author": "",
