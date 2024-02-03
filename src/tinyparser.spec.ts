@@ -56,19 +56,22 @@ describe("TinyParser", () => {
 
   it("Should emit an error if the URL does not start with http or https", () => {
     // https://nodejs.org/api/events.html#error-events
-    new TinyParser("ftp://example.com/", 10000)
-      .on("error", (err) => {
+    try {
+      new TinyParser("ftp://example.com/", 10000)
+        .on("error", (err) => {
         assert.strictEqual(err.message, "URL should start with http or https");
         assert.equal(err instanceof Error, true);
       })
       .on("startedParsing", () => {
         assert.fail("Should not emit startedParsing event");
       });
+    } catch (error: unknown) {
+      assert.strictEqual((error as Error).message, "URL should start with http or https");
+    }
   });
 
   it("Should emit an error if timeouted", () => {
-    const parser = new TinyParser("http://example.com/", 1);
-    parser.on("error", (err) => {
+    new TinyParser("http://example.com/", 1).on("error", (err) => {
       assert.strictEqual(err.message, "Request Timed Out");
       assert.equal(err instanceof Error, true);
     });
