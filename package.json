@@ -1,0 +1,27 @@
+{
+  "name": "tinyparser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "npm run build && node --test **/*.spec.js",
+    "test:watch": "node --test --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.4",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.0-beta"
+  }
+}
