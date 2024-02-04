@@ -2,11 +2,7 @@ import * as http from "http";
 import * as https from "https";
 import { setTimeout } from "node:timers/promises";
 import { EventEmitter } from "stream";
-
-type Tags = "title" | "description" | "image";
-const tags: `og:${Tags}`[] = ["og:title", "og:description", "og:image"];
-
-export type ParsedData = Record<Tags, string>;
+import { MetaTagsParser } from "./metaparser";
 
 /**
  * @class TinyParser
@@ -59,30 +55,6 @@ export class TinyParser extends EventEmitter {
       return false;
     }
     return true;
-  }
-
-  /**
-   * @method _parseBody
-   * @description Parses the body of the HTML and returns the parsed data. Responsible for parsing the meta tags
-   * @param body - The body of the HTML
-   * @returns {ParsedData} - The parsed data
-   */
-  private _parseBody(body: string): ParsedData {
-    const obj: ParsedData = {
-      title: "",
-      description: "",
-      image: "",
-    };
-
-    for (const line of body.split("\n")) {
-      for (const tag of tags) {
-        if (line.includes(tag)) {
-          const value = line.split('content="')[1].split('"')[0];
-          obj[tag.split(":")[1] as Tags] = value;
-        }
-      }
-    }
-    return obj;
   }
 
   /**
@@ -195,7 +167,7 @@ export class TinyParser extends EventEmitter {
               // Destroy the connection
               res.destroy();
               // Parse the data
-              const data = this._parseBody(rawData);
+              const data = MetaTagsParser._parseBody(rawData);
 
               this.emit("data", data);
               this._clearTimeout();

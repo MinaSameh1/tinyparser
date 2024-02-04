@@ -1,4 +1,5 @@
-import { ParsedData, TinyParser } from "./tinyparser";
+import { ParsedData } from "./metaparser";
+import { TinyParser } from "./tinyparser";
 
 const url = "https://carsonline.bonhams.com/en/";
 
