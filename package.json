@@ -4,23 +4,26 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "LOG_LEVEL=debug node dist/index.js | pino-pretty",
+    "dev": "LOG_LEVEL=debug ts-node-dev --respawn --transpile-only src/index.ts | pino-pretty",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "npm run build && node --test **/*.spec.js",
-    "test:watch": "node --test --watch",
-    "test:watch:all": "node --test --watch **/*.spec.js"
+    "test": "LOG_LEVEL=silent rm -rf ./dist && npm run build && node --test **/*.spec.js",
+    "test:watch": "LOG_LEVEL=debug node --test --watch",
+    "test:watch:all": "LOG_LEVEL=debug node --test --watch **/*.spec.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "pino": "^8.18.0"
+  },
   "devDependencies": {
     "@types/node": "^20.11.16",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
+    "pino-pretty": "^10.3.1",
     "prettier": "^3.2.4",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0-beta"
