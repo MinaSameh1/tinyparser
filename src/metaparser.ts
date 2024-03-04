@@ -10,7 +10,7 @@ export class MetaTagsParser {
    * @param body - The body of the HTML
    * @returns {ParsedData} - The parsed data
    */
-  static _parseBody(body: string): ParsedData {
+  _parseBody(body: string): ParsedData {
     const obj: ParsedData = {
       title: "",
       description: "",

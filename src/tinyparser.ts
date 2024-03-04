@@ -2,6 +2,7 @@ import * as http from "http";
 import * as https from "https";
 import { setTimeout } from "node:timers/promises";
 import { EventEmitter } from "stream";
+import { logger } from "./logger";
 import { MetaTagsParser } from "./metaparser";
 
 /**
@@ -27,6 +28,14 @@ export class TinyParser extends EventEmitter {
     this.timeout = timeout;
     this.url = url;
     this._startParsing();
+  }
+
+  emit(eventName: string | symbol, ...args: any[]): boolean {
+    if (eventName === "error") {
+      logger.error(args[0]);
+      return super.emit(eventName, ...args);
+    }
+    return super.emit(eventName, ...args);
   }
 
   /**
@@ -91,6 +100,87 @@ export class TinyParser extends EventEmitter {
     }
   }
 
+  private handleChunk(
+    chunk: string,
+    rawData: string,
+    cb: (data: string) => void,
+  ) {
+    rawData += chunk;
+
+    // if we have the head tag, we can parse the data we care about it
+    if (chunk.includes("</head>")) {
+      cb(rawData);
+    }
+  }
+
+  private handleEnd(rawData: string) {
+    logger.debug(`Raw data ${JSON.stringify(rawData, null, 2)}`);
+    // Get only the important bits
+    rawData = rawData.split("</head>")[0] + "</head>";
+    const metaTagsParser = new MetaTagsParser();
+    // Parse the data
+    const data = metaTagsParser._parseBody(rawData);
+
+    logger.debug(`Parsed data ${JSON.stringify(data, null, 2)}`);
+
+    this.emit("data", data);
+    this._clearTimeout();
+    this.emit("end");
+  }
+
+  private doGetRequest(
+    url: string,
+    options: http.RequestOptions,
+    cb: (res: http.IncomingMessage) => void,
+  ) {
+    if (url.startsWith("https")) {
+      return https.get(url, options, cb);
+    }
+    return http.get(url, options, cb);
+  }
+
+  private handleResponse(res: http.IncomingMessage) {
+    const { statusCode } = res;
+    const contentType = res.headers["content-type"];
+
+    // Validate the response
+    let error;
+    if (!statusCode || statusCode > 399 || !contentType) {
+      error = new Error("Request Failed.\n" + `Status Code: ${statusCode}`);
+    } else if (
+      !/html/.test(contentType) &&
+      !/^text\/plain$/.test(contentType)
+    ) {
+      error = new Error(
+        "Invalid content-type.\n" +
+          `Expected html or textplain but received ${contentType}`,
+      );
+    }
+    if (error) {
+      this.emit("error", error);
+      // Consume response data to free up memory
+      res.resume();
+      return;
+    }
+
+    res.setEncoding("utf8");
+
+    // Handle errors
+    res.on("error", (e) => {
+      this.emit(
+        "error",
+        new Error(`Tiny Parser Got error while doing http call: ${e.message}`, {
+          cause: e,
+        }),
+      );
+    });
+
+    let rawData = "";
+    return res.on("data", (chunk) => {
+      this.handleChunk(chunk, rawData, (data) => this.handleEnd(data));
+    });
+  }
+
   /**
    * @method _startParsing
    * @description Starts the parsing of the URL, responsible for making the http call, getting the HTML and emitting events.
@@ -107,91 +197,26 @@ export class TinyParser extends EventEmitter {
     });
 
     this.emit("startedParsing");
-    (this.url.startsWith("https") ? https : http)
-      .get(
-        this.url,
-        {
-          signal: this.httpAbortController.signal,
-        },
-        (res) => {
-          const { statusCode } = res;
-          const contentType = res.headers["content-type"];
 
-          // Validate the response
-          let error;
-          if (!statusCode || statusCode > 399 || !contentType) {
-            error = new Error(
-              "Request Failed.\n" + `Status Code: ${statusCode}`,
-            );
-          } else if (
-            !/html/.test(contentType) &&
-            !/^text\/plain$/.test(contentType)
-          ) {
-            error = new Error(
-              "Invalid content-type.\n" +
-              `Expected html or textplain but received ${contentType}`,
-            );
-          }
-          if (error) {
-            this.emit("error", error);
-            // Consume response data to free up memory
-            res.resume();
-            return;
-          }
+    this.doGetRequest(
+      this.url,
+      {
+        signal: this.httpAbortController.signal,
+      },
+      (res) => this.handleResponse(res),
+    ).on("error", (e) => {
+      // If the error is an abort error, ignore it
+      if (e.name === "AbortError") {
+        return;
+      }
 
-          res.setEncoding("utf8");
-
-          // Handle errors
-          res.on("error", (e) => {
-            this.emit(
-              "error",
-              new Error(
-                `Tiny Parser Got error while doing http call: ${e.message}`,
-                {
-                  cause: e,
-                },
-              ),
-            );
-          });
-
-          let rawData = "";
-          return res.on("data", (chunk) => {
-            // Ignore the chunk if it contains style or script tags
-            if (!chunk.includes("<style>") || !chunk.includes("<script>"))
-              rawData += chunk;
-
-            // if we have the head tag, we can parse the data we care about it
-            if (chunk.includes("</head>")) {
-              // Get only the important bits
-              rawData = rawData.split("</head>")[0] + "</head>";
-              // Destroy the connection
-              res.destroy();
-              // Parse the data
-              const data = MetaTagsParser._parseBody(rawData);
-
-              this.emit("data", data);
-              this._clearTimeout();
-              this.emit("end");
-            }
-          });
-        },
-      )
-      .on("error", (e) => {
-        // If the error is an abort error, ignore it
-        if (e.name === "AbortError") {
-          return;
-        }
-
-        // Emit the http error
-        this.emit(
-          "error",
-          new Error(
-            `Tiny Parser Got error while doing http call: ${e.message}`,
-            {
-              cause: e,
-            },
-          ),
-        );
-      });
+      // Emit the http error
+      this.emit(
+        "error",
+        new Error(`Tiny Parser Got error while doing http call: ${e.message}`, {
+          cause: e,
+        }),
+      );
+    });
   }
 }
